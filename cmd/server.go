@@ -20,6 +20,7 @@ import (
 	"github.com/komari-monitor/komari/api/admin/test"
 	"github.com/komari-monitor/komari/api/admin/update"
 	"github.com/komari-monitor/komari/api/client"
+	"github.com/komari-monitor/komari/api/jsonRpc"
 	"github.com/komari-monitor/komari/api/record"
 	"github.com/komari-monitor/komari/api/task"
 	"github.com/komari-monitor/komari/cmd/flags"
@@ -84,6 +85,16 @@ func RunServer() {
 	go messageSender.Initialize()
 	// oidcInit
 	go oauth.Initialize()
+
+	if conf.NezhaCompatEnabled {
+		go func() {
+			if err := StartNezhaCompat(conf.NezhaCompatListen); err != nil {
+				log.Printf("Nezha compat server error: %v", err)
+				auditlog.EventLog("error", fmt.Sprintf("Nezha compat server error: %v", err))
+			}
+		}()
+	}
+
 	config.Subscribe(func(event config.ConfigEvent) {
 		if event.New.OAuthProvider != event.Old.OAuthProvider {
 			oidcProvider, err := database.GetOidcConfigByName(event.New.OAuthProvider)
@@ -99,6 +110,19 @@ func RunServer() {
 		}
 		if event.New.NotificationMethod != event.Old.NotificationMethod {
 			messageSender.Initialize()
+		}
+		if event.New.NezhaCompatEnabled != event.Old.NezhaCompatEnabled {
+			if event.New.NezhaCompatEnabled {
+				if err := StartNezhaCompat(event.New.NezhaCompatListen); err != nil {
+					log.Printf("start Nezha compat server error: %v", err)
+					auditlog.EventLog("error", fmt.Sprintf("start Nezha compat server error: %v", err))
+				}
+			} else {
+				if err := StopNezhaCompat(); err != nil {
+					log.Printf("stop Nezha compat server error: %v", err)
+					auditlog.EventLog("error", fmt.Sprintf("stop Nezha compat server error: %v", err))
+				}
+			}
 		}
 
 	})
@@ -167,6 +191,9 @@ func RunServer() {
 	r.GET("/api/records/load", record.GetRecordsByUUID)
 	r.GET("/api/records/ping", record.GetPingRecords)
 	r.GET("/api/task/ping", task.GetPublicPingTasks)
+	r.GET("/api/rpc2", jsonRpc.OnRpcRequest)
+	r.POST("/api/rpc2", jsonRpc.OnRpcRequest)
+
 	// #region Agent
 	r.POST("/api/clients/register", client.RegisterClient)
 	tokenAuthrized := r.Group("/api/clients", api.TokenAuthMiddleware())
@@ -317,6 +344,7 @@ func RunServer() {
 		Addr:    flags.Listen,
 		Handler: r,
 	}
+	log.Printf("Starting server on %s ...", flags.Listen)
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			OnFatal(err)

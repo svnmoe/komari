@@ -100,8 +100,6 @@ sudo ./install-komari.sh
 ## Frontend Development Guide
 [Komari Theme Development Guide | Komari](https://komari-document.pages.dev/dev/theme.html)
 
-[Translate Komari on Crowdin](https://crowdin.com/project/komari/invite?h=cd051bf172c9a9f7f1360e87ffb521692507706)
-
 ## Client Agent Development Guide
 [Komari Agent Information Reporting and Event Handling Documentation](https://komari-document.pages.dev/dev/agent.html)
 
@@ -109,9 +107,22 @@ sudo ./install-komari.sh
 Issues and Pull Requests are welcome!
 
 ## Acknowledgements
- - [DreamCloud - 极高性价比解锁直连亚太高防](https://as211392.com/)
- - Thanks to myself for being so idle
- - All the developers who submitted PRs and created themes
+
+### DreamCloud
+
+[DreamCloud - 极高性价比解锁直连亚太高防](https://as211392.com/)
+
+### 🚀 Sponsored by SharonNetworks
+
+[![Sharon Networks](https://raw.githubusercontent.com/komari-monitor/public/refs/heads/main/images/sharon-networks.webp)](https://sharon.io) 
+
+SharonNetworks 为您的业务起飞保驾护航！
+
+亚太数据中心提供顶级的中国优化网络接入 · 低延时&高带宽&提供Tbps级本地清洗高防服务, 为您的业务保驾护航, 为您的客户提供极致体验. 加入社区 [Telegram群组](https://t.me/SharonNetwork) 可参与公益募捐或群内抽奖免费使用
+
+### The open source software community
+
+All the developers who submitted PRs and created themes
 
 ## Star History
 

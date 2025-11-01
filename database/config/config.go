@@ -25,15 +25,18 @@ func Get() (models.Config, error) {
 	if err := db.First(&config).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			config = models.Config{
-				ID:            1,
-				Sitename:      "Komari",
-				Description:   "Komari Monitor, a simple server monitoring tool.",
-				AllowCors:     false,
-				OAuthEnabled:  false,
-				GeoIpEnabled:  true,
-				GeoIpProvider: "ip-api",
-				UpdatedAt:     models.FromTime(time.Now()),
-				CreatedAt:     models.FromTime(time.Now()),
+				ID:                   1,
+				Sitename:             "Komari",
+				Description:          "Komari Monitor, a simple server monitoring tool.",
+				AllowCors:            false,
+				OAuthEnabled:         false,
+				GeoIpEnabled:         true,
+				GeoIpProvider:        "ipinfo",
+				NezhaCompatEnabled:   false,
+				NezhaCompatListen:    "",
+				NotificationTemplate: "{{emoji}}{{emoji}}{{emoji}}\nEvent: {{event}}\nClients: {{client}}\nMessage: {{message}}\nTime: {{time}}",
+				UpdatedAt:            models.FromTime(time.Now()),
+				CreatedAt:            models.FromTime(time.Now()),
 			}
 			if err := db.Create(&config).Error; err != nil {
 				log.Fatal("Failed to create default config:", err)
@@ -82,7 +85,16 @@ func Update(cst map[string]interface{}) error {
 	if newDisablePasswordLogin && !newOAuthEnabled {
 		return errors.New("at least one login method must be enabled (password/oauth)")
 	}
-
+	// 没绑定账号也不能禁用
+	if newDisablePasswordLogin {
+		usr := &models.User{}
+		if err := db.Model(&models.User{}).First(usr).Error; err != nil {
+			return errors.Join(err, errors.New("failed to retrieve user"))
+		}
+		if usr.SSOID == "" {
+			return errors.New("cannot disable password login when no SSO-bound account exists")
+		}
+	}
 	err := db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&models.Config{}).Where("id = ?", oldConfig.ID).Updates(cst).Error; err != nil {
 			return errors.Join(err, errors.New("failed to update configuration"))
