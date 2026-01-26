@@ -1,13 +1,16 @@
 package cmd
 
 import (
+	"context"
 	"os"
+	"time"
 
-	"github.com/komari-monitor/komari/cmd/flags"
-	"github.com/komari-monitor/komari/database/accounts"
-	"github.com/komari-monitor/komari/database/dbcore"
-	"github.com/komari-monitor/komari/database/models"
+	"github.com/komari-monitor/komari/internal/conf"
+	"github.com/komari-monitor/komari/internal/database/accounts"
+	"github.com/komari-monitor/komari/internal/database/models"
+	"github.com/komari-monitor/komari/internal/dbcore"
 	"github.com/spf13/cobra"
+	"go.uber.org/fx"
 )
 
 var (
@@ -25,25 +28,35 @@ var ChpasswdCmd = &cobra.Command{
 			cmd.Help()
 			return
 		}
-		if _, err := os.Stat(flags.DatabaseFile); os.IsNotExist(err) {
-			cmd.Println("Database file does not exist.")
-			return
-		}
-		user := &models.User{}
-		dbcore.GetDBInstance().Model(&models.User{}).First(user)
-		cmd.Println("Changing password for user:", user.Username)
-		if err := accounts.ForceResetPassword(user.Username, NewPassword); err != nil {
+		fxApp := fx.New(
+			conf.FxModule(),
+			dbcore.FxModule(),
+			fx.NopLogger,
+		)
+		err := runFxWith(context.Background(), fxApp, 5*time.Second, func(ctx context.Context) error {
+			if _, err := os.Stat(conf.Conf.Database.DatabaseFile); os.IsNotExist(err) {
+				cmd.Println("Database file does not exist.")
+				return nil
+			}
+			user := &models.User{}
+			dbcore.GetDBInstance().Model(&models.User{}).First(user)
+			cmd.Println("Changing password for user:", user.Username)
+			if err := accounts.ForceResetPassword(user.Username, NewPassword); err != nil {
+				cmd.Println("Error:", err)
+				return nil
+			}
+			cmd.Println("Password changed successfully, new password:", NewPassword)
+
+			if err := accounts.DeleteAllSessions(); err != nil {
+				cmd.Println("Unable to force logout of other devices:", err)
+				return nil
+			}
+			cmd.Println("Please restart the server to apply the changes.")
+			return nil
+		})
+		if err != nil {
 			cmd.Println("Error:", err)
-			return
 		}
-		cmd.Println("Password changed successfully, new password:", NewPassword)
-
-		if err := accounts.DeleteAllSessions(); err != nil {
-			cmd.Println("Unable to force logout of other devices:", err)
-			return
-		}
-
-		cmd.Println("Please restart the server to apply the changes.")
 	},
 }
 
